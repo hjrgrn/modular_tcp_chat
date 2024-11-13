@@ -24,9 +24,8 @@ neovim = [
     "pynvim"
 ]
 
-# [project.urls]
-# "Homepage" = "https://github.com/pypa/sampleproject"
-# "Bug Tracker" = "https://github.com/pypa/sampleproject/issues"
+[project.urls]
+"Homepage" = "https://github.com/hjrgrn/modular_tcp_chat"
 
 [project.scripts]
 server = "server:application.run"
