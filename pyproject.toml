@@ -1,0 +1,37 @@
+[project]
+name = "modular_tcp_chat"
+version = "0.1.0"
+authors = [
+    { name="hjrgrn", email="187955624+hjrgrn@users.noreply.github.com" },
+]
+maintainers = [
+    { name="hjrgrn", email="187955624+hjrgrn@users.noreply.github.com" },
+]
+description = "Modular TCP chat written for practice purpose"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: POSIX :: Linux",
+]
+dependencies = [
+    "pycryptodomex",
+    "rsa"
+]
+[project.optional-dependencies]
+neovim = [
+    "pynvim"
+]
+
+# [project.urls]
+# "Homepage" = "https://github.com/pypa/sampleproject"
+# "Bug Tracker" = "https://github.com/pypa/sampleproject/issues"
+
+[project.scripts]
+server = "server:application.run"
+client = "client:application.run"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
