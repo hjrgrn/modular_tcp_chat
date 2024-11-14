@@ -6,7 +6,9 @@ import getpass
 import hashlib
 import logging
 import queue
+import random
 import sqlite3
+import string
 
 from lib.auxiliaries import read_from_stdin
 
@@ -131,9 +133,11 @@ class CreateAdminInteractively(DatabaseCommand):
             )
             return
 
+        key = "".join(random.choices(string.ascii_letters, k=10))
+
         # hashing password
         hashing = hashlib.sha512()
-        hashing.update(password.encode("utf-8"))
+        hashing.update((password + key).encode("utf-8"))
         hash_pass = hashing.hexdigest()
 
         # database registration
@@ -142,8 +146,8 @@ class CreateAdminInteractively(DatabaseCommand):
                 "SELECT id FROM roles WHERE (title = 'admin')"
             ).fetchone()["id"]
             db.execute(
-                "INSERT INTO users (username, email, hash_pass, role, logged_in) VALUES (?, ?, ?, ?, 0)",
-                (username, email, hash_pass, role),
+                "INSERT INTO users (username, email, hash_pass, key, role, logged_in) VALUES (?, ?, ?, ?, ?, 0)",
+                (username, email, hash_pass, key, role),
             )
             db.commit()
         except (sqlite3.Error, TypeError) as e:
@@ -266,7 +270,12 @@ class Teardown(DatabaseCommand):
 
 class RegisterUser(DatabaseCommand):
     def __init__(
-        self, response_queue: queue.Queue, username: str, email: str, hash_pass: str
+        self,
+        response_queue: queue.Queue,
+        username: str,
+        email: str,
+        hash_pass: str,
+        key: str,
     ):
         """
         Registers a user, it needs additional argument in the constructor:
@@ -279,6 +288,7 @@ class RegisterUser(DatabaseCommand):
         self.username = username
         self.email = email
         self.hash_pass = hash_pass
+        self.key = key
 
     def execute(self, db: sqlite3.Connection):
         """
@@ -291,8 +301,8 @@ class RegisterUser(DatabaseCommand):
             return
         try:
             db.execute(
-                "INSERT INTO users (username, email, hash_pass) VALUES (?, ?, ?)",
-                (self.username, self.email, self.hash_pass),
+                "INSERT INTO users (username, email, hash_pass, key) VALUES (?, ?, ?, ?)",
+                (self.username, self.email, self.hash_pass, self.key),
             )
             db.commit()
             user = db.execute(
@@ -319,7 +329,7 @@ class RegisterUser(DatabaseCommand):
 
 class LoginUser(DatabaseCommand):
     def __init__(
-        self, response_queue: queue.Queue, nick: str, email: str, hash_pass: str
+        self, response_queue: queue.Queue, username: str, email: str, password: str
     ):
         """
         Logs a user in, it needs additional argument in the constructor:
@@ -328,16 +338,16 @@ class LoginUser(DatabaseCommand):
         - hash_pass: the hashed version of the password
         """
         super().__init__(response_queue)
-        self.nick = nick
+        self.username = username
         self.email = email
-        self.hash_pass = hash_pass
+        self.password = password
 
     def execute(self, db: sqlite3.Connection):
         logging.info("Loggin in a user")
         try:
             user = db.execute(
-                "SELECT id, username, email, hash_pass, logged_in FROM users  WHERE (username = ?) AND (email = ?) AND (hash_pass = ?)",
-                (self.nick, self.email, self.hash_pass),
+                "SELECT id, username, email, hash_pass, logged_in, key FROM users  WHERE (username = ?) AND (email = ?)",
+                (self.username, self.email),
             ).fetchone()
         except sqlite3.Error as e:
             logging.error(
@@ -361,14 +371,19 @@ class LoginUser(DatabaseCommand):
         if user["email"] != self.email:
             self.response_queue.put(NonCriticalDatabaseError("Wrong email provided"))
             return
-        if user["hash_pass"] != self.hash_pass:
+
+        h = hashlib.sha512()
+        h.update((self.password + user["key"]).encode("utf-8"))
+        hash_pass = h.hexdigest()
+
+        if user["hash_pass"] != hash_pass:
             self.response_queue.put(NonCriticalDatabaseError("Wrong password provided"))
             return
 
         try:
             db.execute(
                 "UPDATE users SET logged_in = 1 WHERE (username = ?) AND (email = ?) AND (hash_pass = ?)",
-                (self.nick, self.email, self.hash_pass),
+                (self.username, self.email, self.password),
             )
             db.commit()
         except sqlite3.Error as e:

@@ -27,6 +27,7 @@ CREATE TABLE users (
     username VARCHAR(60) UNIQUE NOT NULL,
     email VARCHAR(200) UNIQUE NOT NULL,
     hash_pass TEXT NOT NULL,
+    key CHAR(10) NOT NULL,
     subscribed TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP),
     role INTEGER NOT NULL DEFAULT (
         -- we need to fix this

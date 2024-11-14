@@ -5,6 +5,8 @@ import sqlite3
 import hashlib
 import queue
 import threading
+import string
+import random
 from lib.auxiliaries import read_from_stdin
 from lib.constants import (
     ABSTRACT_METHOD,
@@ -274,8 +276,7 @@ class BasicAuthHandshakeSS(HandshakeServerSide):
                 print("Unexpected command. Try again...")
 
     def connect(self, socket_handler: SocketHandler) -> Client | Exception:
-        """TODO: Docstring for connect.
-        """
+        """TODO: Docstring for connect."""
         socket_handler.set_timeout(30)
 
         # gathering the mode
@@ -482,16 +483,19 @@ class BasicAuthHandshakeSS(HandshakeServerSide):
         if isinstance(error, Exception):
             return error
         email = error.decode("utf-8")
-        password = socket_handler.receive()
+        password = socket_handler.receive().decode("utf-8")
         if isinstance(password, Exception):
             return password
 
+        key = "".join(random.choices(string.ascii_letters, k=10))
+        password = password + key
+
         h = hashlib.sha512()
-        h.update(password)
+        h.update(password.encode("utf-8"))
         hash_pass = h.hexdigest()
 
         res_q = queue.Queue()
-        command = RegisterUser(res_q, username, email, hash_pass)
+        command = RegisterUser(res_q, username, email, hash_pass, key)
         self._command_queue.put(command)
         response = None
         try:
@@ -499,7 +503,7 @@ class BasicAuthHandshakeSS(HandshakeServerSide):
         except Exception as e:
             return e
         if isinstance(response, Exception):
-            return e
+            return response
 
         id = response
 
@@ -518,16 +522,12 @@ class BasicAuthHandshakeSS(HandshakeServerSide):
         if isinstance(error, Exception):
             return error
         email = error.decode("utf-8")
-        password = socket_handler.receive()
+        password = socket_handler.receive().decode("utf-8")
         if isinstance(password, Exception):
             return password
 
-        h = hashlib.sha512()
-        h.update(password)
-        hash_pass = h.hexdigest()
-
         res_q = queue.Queue()
-        command = LoginUser(res_q, username, email, hash_pass)
+        command = LoginUser(res_q, username, email, password)
         self._command_queue.put(command)
         response = None
         try:
