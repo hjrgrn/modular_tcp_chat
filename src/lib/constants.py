@@ -34,6 +34,15 @@ class ServerConfigurationError(Exception):
 class ClientConfigurationError(Exception):
     pass
 
+class EncryptionHandlerFailed(Exception):
+    pass
+
+class DecryptionError(Exception):
+    pass
+
+class EncryptionError(Exception):
+    pass
+
 
 # Handshake related Exceptions
 class HandshakeError(Exception):

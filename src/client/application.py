@@ -1,7 +1,7 @@
 from client.client_lib import ChatClient
 from client.config import ClientConfiguration
 from client.strategies.handshakes import BasicAuthHandshakeCS
-from client.strategies.encryption import SymAsymEncHandCL
+from client.strategies.encryption import SharedSecretCS
 import signal
 import sys
 
@@ -26,7 +26,7 @@ def run():
 
     global MASTER
     MASTER = ChatClient(
-        BasicAuthHandshakeCS, SymAsymEncHandCL, EncryptSocketHandler, configuration
+        BasicAuthHandshakeCS, SharedSecretCS, EncryptSocketHandler, configuration
     )
     MASTER.run()
 
