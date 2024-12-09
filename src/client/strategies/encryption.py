@@ -21,7 +21,40 @@ from lib.strategies.handlers import EncryptionHandler
 
 
 class SharedSecretCS(EncryptionHandler):
-    """TODO: comment"""
+    """# SharedSecretCS
+
+    ## Description
+
+    Concrete implementation of `EncryptionHandler`.
+    This implementation uses an RSA key to exchange a AES key (both specific for every single connection), the last one will be used during the final part of the exchange and during the session.
+    During the exchange nonces, sha512 hashes, a shared secret(collected interactively) and a hmac key are used to verify the integrity of the exchange in order to prevent: playback attacks, segment replay attacks, spoofing(server side and client side); hopefully.
+    This implementation offers no protection against disrupting minaces like DOS and truncation attacks at application layer.
+    Every message exchanged is encrypted using AES and its integrity is verifyied using the sha256 algorithm, a sequence number(selected pseudo randomly during the exchange) and a hmac key.
+    Some procedure are willingly redundant.
+    This implementation assures client authentication but not user authentication, which is responsability of `HandshakeClientSide` and `HandshakeServerSide`.
+
+
+    ## Packet
+
+    ### Decrypted
+
+    sequence number: 4 bytes
+    payload: not limited
+
+    ### Encrypted
+
+    encrypted payload: multiple of 16 bytes
+    hash: 64 bytes
+
+    ### Notes
+
+    The size of the payload is not limited, the limitation is delegated to `HandshakeServerSide` and `HandshakeClientSide`
+
+
+    ## Notes
+
+    This is only a toy project made for practice purpose and should not be used into production or relied upon.
+    """
 
     def __init__(self):
         super().__init__()
@@ -61,9 +94,6 @@ class SharedSecretCS(EncryptionHandler):
         return cloned
 
     def exchange(self, client_sock: socket.socket):
-        """TODO: Docstring for .
-        NOTE: Nonce, Seq number, hmac
-        """
         # receive nonce and public rsa key
         error = self._recv_nonce_rsa(client_sock)
         if isinstance(error, Exception):
@@ -126,7 +156,9 @@ class SharedSecretCS(EncryptionHandler):
     def _send_packet(
         self, client_sock: socket, packet: bytes
     ) -> None | HandshakeFailed:
-        """TODO: comment"""
+        """
+        `exchange`'s helper
+        """
         pack_len = len(packet)
         total_sent = 0
         while total_sent < pack_len:
@@ -138,7 +170,9 @@ class SharedSecretCS(EncryptionHandler):
     def _receiving_packet(
         self, client_sock: socket, pack_len: int, overflow: bytes
     ) -> tuple[bytes, bytes] | HandshakeFailed:
-        """TODO: comment, returns packet and overflow"""
+        """
+        `exchange`'s helper
+        """
         packet = overflow
         total_received = len(overflow)
         while total_received < pack_len:
@@ -152,9 +186,8 @@ class SharedSecretCS(EncryptionHandler):
         return (p, o)
 
     def _recv_nonce_rsa(self, client_sock: socket) -> bytes | bytes | HandshakeFailed:
-        """TODO: Docstring for _recv_nonce_rsa.
-        :returns: TODO
-
+        """
+        `exchange`'s helper
         """
         pack_len = 251 + self.nonce_length
         tup = self._receiving_packet(client_sock, pack_len, b"")
@@ -179,9 +212,8 @@ class SharedSecretCS(EncryptionHandler):
     def _send_aes_cipher_hmac_nonce_seq_send(
         self, client_sock: socket
     ) -> None | HandshakeFailed:
-        """TODO: Docstring for send_aes_cipher_hmac_nonce_seq_send.
-        :returns: TODO
-
+        """
+        `exchange`'s helper
         """
         # generate aes key, aes cipher, hmac key, nonce, seq number send
         salt = get_random_bytes(32)
@@ -220,9 +252,8 @@ class SharedSecretCS(EncryptionHandler):
     def _recv_check_hash(
         self, client_sock: socket, overflow: bytes
     ) -> bytes | HandshakeFailed:
-        """TODO: Docstring for recv_check_hash.
-        :returns: TODO
-
+        """
+        `exchange`'s helper
         """
         packet = overflow
         pack_len = 128
@@ -258,9 +289,8 @@ class SharedSecretCS(EncryptionHandler):
     def _recv_seq_send(
         self, client_sock: socket, overflow: bytes
     ) -> bytes | HandshakeFailed:
-        """TODO: Docstring for recv_seq_send.
-        :returns: TODO
-
+        """
+        `exchange`'s helper
         """
         # NOTE: using AES
         packet = overflow
@@ -296,9 +326,8 @@ class SharedSecretCS(EncryptionHandler):
         return overflow
 
     def _send_hash(self, client_sock: socket) -> None | HandshakeFailed:
-        """TODO: Docstring for _send_hash.
-        :returns: TODO
-
+        """
+        `exchange`'s helper
         """
         self.hash_function.update(
             str(self.sequence_number_send).encode("utf-8")
@@ -315,9 +344,8 @@ class SharedSecretCS(EncryptionHandler):
             total_sent = total_sent + bytes_sent
 
     def _clean_up(self):
-        """TODO: Docstring for _clean_up.
-        :returns: TODO
-
+        """
+        `exchange`'s helper
         """
         self.nonce_recv = None
         self.nonce_sent = None
@@ -332,7 +360,7 @@ class SharedSecretCS(EncryptionHandler):
         payload = self.get_seq_num_send_bytes() + pack
         encrypted_pack = self.encryption_cipher.encrypt(pad(payload, AES.block_size))
         h = hashlib.sha256()
-        h.update(encrypted_pack + self.shared_secret)
+        h.update(encrypted_pack + self.hmac_key)
         hash = h.hexdigest().encode("utf-8")
         pack = encrypted_pack + hash
         return pack
@@ -341,7 +369,7 @@ class SharedSecretCS(EncryptionHandler):
         encrypted_pack = pack[:-64]
         hash_recv = pack[-64:]
         h = hashlib.sha256()
-        h.update(encrypted_pack + self.shared_secret)
+        h.update(encrypted_pack + self.hmac_key)
         hash = h.hexdigest().encode("utf-8")
         if hash != hash_recv:
             return DecryptionError("Hash received is invalid.")

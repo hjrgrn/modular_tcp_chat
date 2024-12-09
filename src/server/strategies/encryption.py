@@ -19,7 +19,40 @@ from lib.strategies.handlers import EncryptionHandler
 
 
 class SharedSecretSS(EncryptionHandler):
-    """TODO: comment"""
+    """# SharedSecretSS
+
+    ## Description
+
+    Concrete implementation of `EncryptionHandler`.
+    This implementation uses an RSA key to exchange a AES key (both specific for every single connection), the last one will be used during the final part of the exchange and during the session.
+    During the exchange nonces, sha512 hashes, a shared secret(collected interactively) and a hmac key are used to verify the integrity of the exchange in order to prevent: playback attacks, segment replay attacks, spoofing(server side and client side); hopefully.
+    This implementation offers no protection against disrupting minaces like DOS and truncation attacks at application layer.
+    Every message exchanged is encrypted using AES and its integrity is verifyied using the sha256 algorithm, a sequence number(selected pseudo randomly during the exchange) and a hmac key.
+    Some procedure are willingly redundant.
+    This implementation assures client authentication but not user authentication, which is responsability of `HandshakeClientSide` and `HandshakeServerSide`.
+
+
+    ## Packet
+
+    ### Decrypted
+
+    sequence number: 4 bytes
+    payload: not limited
+
+    ### Encrypted
+
+    encrypted payload: multiple of 16 bytes
+    hash: 64 bytes
+
+    ### Notes
+
+    The size of the payload is not limited, the limitation is delegated to `HandshakeServerSide` and `HandshakeClientSide`
+
+
+    ## Notes
+
+    This is only a toy project made for practice purpose and should not be used into production or relied upon.
+    """
 
     def __init__(self):
         super().__init__()
@@ -52,9 +85,7 @@ class SharedSecretSS(EncryptionHandler):
         the clients in a secure way, without said secret the client won't be
         able to connect.
         """
-        self.shared_secret = getpass(
-            "Type in your shared secret(min 3 chars): "
-        ).encode("utf-8")
+        self.shared_secret = getpass("Type in your shared secret: ").encode("utf-8")
 
     def clone(self):
         cloned = SharedSecretSS()
@@ -62,16 +93,12 @@ class SharedSecretSS(EncryptionHandler):
         return cloned
 
     def exchange(self, client_sock: socket.socket) -> bytes | HandshakeFailed:
-        """TODO: Docstring for .
-        NOTE: Nonce, Seq number, Sym key, Hash key, check package
-
-        """
         self.nonce_sent = self._send_nonce_rsa(client_sock)
         if isinstance(self.nonce_sent, Exception):
             return self.nonce_sent
 
         # receive hash
-        # NOTE: receiving hash in order to cut the connection earlier if it client is not authorized
+        # NOTE: receiving hash now in order to cut the connection earlier if it client is not authorized
         overflow = self._recv_hash_nonce_rsa(client_sock)
         if isinstance(overflow, Exception):
             return overflow
@@ -93,8 +120,7 @@ class SharedSecretSS(EncryptionHandler):
             return error
 
         # Send `sequence_number_recv`
-        # NOTE: using AES
-
+        # NOTE: using AES from now on
         error = self._send_seq_recv(client_sock)
         if isinstance(error, Exception):
             return error
@@ -137,7 +163,9 @@ class SharedSecretSS(EncryptionHandler):
     def _send_packet(
         self, client_sock: socket, packet: bytes
     ) -> None | HandshakeFailed:
-        """TODO: comment"""
+        """
+        `exchange`'s helper
+        """
         # TODO: duplication in the client side
         pack_len = len(packet)
         total_sent = 0
@@ -150,7 +178,9 @@ class SharedSecretSS(EncryptionHandler):
     def _receiving_packet(
         self, client_sock: socket, pack_len: int, overflow: bytes
     ) -> tuple[bytes, bytes] | HandshakeFailed:
-        """TODO: comment, returns packet and overflow"""
+        """
+        `exchange`'s helper
+        """
         # TODO: duplication in the client side
         packet = overflow
         total_received = len(overflow)
@@ -165,11 +195,8 @@ class SharedSecretSS(EncryptionHandler):
         return (p, o)
 
     def _send_nonce_rsa(self, client_sock: socket) -> bytes | HandshakeFailed:
-        """TODO: Docstring for _send_nonce_rsa.
-
-        :arg1: TODO
-        :returns: TODO
-
+        """
+        `exchange`'s helper
         """
         nonce_sent = "".join(
             random.choices(string.printable, k=self.nonce_length)
@@ -183,11 +210,8 @@ class SharedSecretSS(EncryptionHandler):
         return nonce_sent
 
     def _recv_hash_nonce_rsa(self, client_sock: socket) -> bytes | HandshakeFailed:
-        """TODO: Docstring for _recv_hash_nonce_rsa.
-
-        :arg1: TODO
-        :returns: TODO
-
+        """
+        `exchange`'s helper
         """
         tup = self._receiving_packet(client_sock, 128, b"")
         if isinstance(tup, Exception):
@@ -209,11 +233,8 @@ class SharedSecretSS(EncryptionHandler):
     def _recv_aes_iv_nonce(
         self, client_sock: socket, overflow: bytes
     ) -> tuple[bytes, bytes] | HandshakeFailed:
-        """TODO: Docstring for _recv_aes_iv_nonce.
-
-        :arg1: TODO
-        :returns: TODO
-
+        """
+        `exchange`'s helper
         """
         tup = self._receiving_packet(client_sock, 128, overflow)
         if isinstance(tup, Exception):
@@ -246,9 +267,8 @@ class SharedSecretSS(EncryptionHandler):
     def _recv_hmac_seq_send(
         self, client_sock: socket, overflow: bytes
     ) -> bytes | HandshakeFailed:
-        """TODO: Docstring for _recv_hmac_seq_send.
-        :returns: TODO
-
+        """
+        `exchange`'s helper
         """
         tup = self._receiving_packet(client_sock, 128, overflow)
         if isinstance(tup, Exception):
@@ -288,11 +308,9 @@ class SharedSecretSS(EncryptionHandler):
     def _send_hash(
         self, client_sock: socket, nonce_recv: bytes
     ) -> None | HandshakeFailed:
-        """TODO: Docstring for _send_hash.
-        :returns: TODO
-
         """
-
+        `exchange`'s helper
+        """
         self.hash_function.update(
             nonce_recv
             + self.shared_secret
@@ -307,9 +325,8 @@ class SharedSecretSS(EncryptionHandler):
             return HandshakeFailed("Failed to send hash.")
 
     def _send_seq_recv(self, client_sock: socket) -> None | HandshakeFailed:
-        """TODO: Docstring for _send_seq_recv.
-        :returns: TODO
-
+        """
+        `exchange`'s helper
         """
         # NOTE: using AES
         self.sequence_number_recv = random.randint(0, self.max_seq_num - 1)
@@ -328,9 +345,8 @@ class SharedSecretSS(EncryptionHandler):
     def _recv_check_hash(
         self, client_sock: socket, overflow: bytes
     ) -> bytes | HandshakeFailed:
-        """TODO: Docstring for _recv_check_hash.
-        :returns: TODO
-
+        """
+        `exchange`'s helper
         """
         tup = self._receiving_packet(client_sock, 128, overflow)
         if isinstance(tup, Exception):
@@ -353,9 +369,8 @@ class SharedSecretSS(EncryptionHandler):
         return overflow
 
     def _clean_up(self):
-        """TODO: Docstring for clean_up.
-        :returns: TODO
-
+        """
+        `exchange`'s helper
         """
         self.priv_rsa_key = None
         self.pub_rsa_key = None
@@ -373,7 +388,7 @@ class SharedSecretSS(EncryptionHandler):
         payload = self.get_seq_num_send_bytes() + pack
         encrypted_pack = self.encryption_cipher.encrypt(pad(payload, AES.block_size))
         h = hashlib.sha256()
-        h.update(encrypted_pack + self.shared_secret)
+        h.update(encrypted_pack + self.hmac_key)
         hash = h.hexdigest().encode("utf-8")
         pack = encrypted_pack + hash
         return pack
@@ -382,7 +397,7 @@ class SharedSecretSS(EncryptionHandler):
         encrypted_pack = pack[:-64]
         hash_recv = pack[-64:]
         h = hashlib.sha256()
-        h.update(encrypted_pack + self.shared_secret)
+        h.update(encrypted_pack + self.hmac_key)
         hash = h.hexdigest().encode("utf-8")
         if hash != hash_recv:
             return DecryptionError("Hash received is invalid.")
