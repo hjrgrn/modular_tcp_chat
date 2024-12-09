@@ -7,7 +7,7 @@ from lib.strategies.handlers import EncryptSocketHandler
 from server.config import ServerConfiguration
 from server.server_lib import Master
 from server.strategies.handshakes import BasicAuthHandshakeSS
-from server.strategies.encryption import SymAsymEncHandSS
+from server.strategies.encryption import SharedSecretSS
 
 
 MASTER: Master = None
@@ -27,7 +27,7 @@ def run():
     MASTER = Master(
         BasicAuthHandshakeSS,
         EncryptSocketHandler,
-        SymAsymEncHandSS,
+        SharedSecretSS,
         configuration,
     )
     error = MASTER.run()

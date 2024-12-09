@@ -31,13 +31,18 @@ class ChatClient:
         self.write_thread: threading.Thread = None
         self.event_shutdown = threading.Event()
         self.socket_handler_class = socket_handler
-        self.encryption_handler_class = encryption_handler
+        self.encryption_handler: EncryptionHandler = encryption_handler()
 
     def run(self):
         """# run
         Main function that performs the handshake and initializes the
         worker threads.
         """
+        error = self.encryption_handler.setup()
+        if error is not None:
+            print(f"Connection failed becouse of:\n{error}", file=sys.stderr)
+            return
+
         error = self.handshake_handler.setup()
         if error is not None:
             print(f"Connection failed becouse of:\n{error}", file=sys.stderr)
@@ -55,7 +60,6 @@ class ChatClient:
             logging.exception(e)
             print(f"{e}", file=sys.stderr)
             sys.exit(2)
-        self.encryption_handler = self.encryption_handler_class()
         self.socket_handler = self.socket_handler_class(
             self.max_word_size, client_sock, self.encryption_handler
         )

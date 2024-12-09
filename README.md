@@ -16,6 +16,16 @@ this way I'm able to propagate the error on the caller function without a try/ex
 the function may return from the signature.
 
 
+## Dependencies
+
+It is suggested to use a virtual environment:
+Install `venv`:
+```bash
+# On Ubuntu based systems
+sudo apt install python3-venv
+```
+
+
 ## Installation
 
 The provided configuration files will run the application on the local machine.
@@ -23,7 +33,9 @@ The provided configuration files will run the application on the local machine.
 On Ubuntu 24.04 based OSes:
 
 ```bash
-sudo apt install python3-venv
+git clone 'https://github.com/hjrgrn/modular_tcp_chat.git'
+cd modular_tcp_chat
+# Create a virtual environment(suggested)
 python3.12 -m venv <PATH_TO_ENV>
 source <PATH_TO_ENV>/bin/activate
 pip install --upgrade pip

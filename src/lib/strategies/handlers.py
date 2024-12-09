@@ -12,6 +12,10 @@ from lib.constants import (
     WRONG_LENGTH,
     APIMisusage,
     ConnectionClosedByOtherSide,
+    DecryptionError,
+    EncryptionError,
+    EncryptionHandlerFailed,
+    HandshakeFailed,
     MalformedPacket,
 )
 
@@ -26,8 +30,13 @@ class EncryptionHandler:
     This abstract class provides default implementation for every method.
 
     ## Usage
-    After defining an instance of `EncryptionHandler` or one of its subclasses call
-    the method `.exchange`, it will exchange all the necessary information with the client;
+    On the server side a prototypical instance has to be created and `setup` method will need to be called on it.
+    Every `SocketHandler` will receive an instance of the prototypical instance using the method
+    `clone`.
+    On the client side there will probabily no need to call `clone` and the single prototypical instance
+    will be sufficient, although is a possibility.
+    After obtaining an instance of `EncryptionHandler` or one of its subclasses, the `SocketHandler`
+    calls the method `.exchange`, it will exchange all the necessary information with the client;
     then call `.decrypt` to decrypt the packet received and `.encrypt` to encrypt the packet
     that will be sent.
     A method `.get_packet_size` can be used to determine the packet size of a packet to be
@@ -38,24 +47,42 @@ class EncryptionHandler:
     def __init__(self):
         pass
 
-    def exchange(self, __client_sock__: socket.socket) -> bytes | Exception:
+    def setup(self) -> None | EncryptionHandlerFailed:
+        """# `setup`
+        Gather all the resources needed for the `EncryptionHandler` to work.
+        Returns `None` if everything went fine, `EncryptionHandlerFailed` otherwise.
+        Abstract method that provides a default implementation.
+        """
+        return None
+
+    def clone(self):
+        """# `clone`
+        Returns an instance of `EncryptionHandler` with that maintains the state of the
+        prototype.
+        Returns `EncryptionHandler` if everything went fine, a `EncryptionHandlerFailed`
+        otherwise.
+        Abstract method that provides a default implementation.
+        """
+        return EncryptionHandler()
+
+    def exchange(self, __client_sock__: socket.socket) -> bytes | HandshakeFailed:
         """# `exchange`
         Exchanges all the information needed for the encryption and decryption
         of the packets, this information will be stored in the object itself,
         returns bytes that have overflown during the exchange(bytes that have
         been passed to the socket after the exchange has completed and have been
         received during the exchange).
-        Returns a custom `Exception` in case of failure.
+        Returns `HandshakeFailed` subclass of `Exception` in case of failure.
         """
         return b""
 
-    def decrypt(self, packet: bytes) -> bytes | Exception:
+    def decrypt(self, packet: bytes) -> bytes | DecryptionError:
         """# `decrypt`
         Decrypts `packet`, returns an `Exception` if unsuccessful.
         """
         return packet
 
-    def encrypt(self, packet: bytes) -> bytes | Exception:
+    def encrypt(self, packet: bytes) -> bytes | EncryptionError:
         """# `encrypt`
         Encrypts `packet`, returns an `Exception` if unsuccessful.
         """
@@ -401,6 +428,8 @@ class EncryptSocketHandler(SocketHandler):
             # extract packet, adjust infos
             encoded_sub_packet = self.internal_receive_buffer[: self.padded_packet_len]
             sub_packet = self.encryption_handler.decrypt(encoded_sub_packet)
+            if isinstance(sub_packet, Exception):
+                return sub_packet
             self.internal_receive_buffer = self.internal_receive_buffer[
                 self.padded_packet_len :
             ]

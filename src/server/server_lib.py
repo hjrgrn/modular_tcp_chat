@@ -29,7 +29,7 @@ class Master:
         self.welcoming_sock: socket.socket = None
         self.handshake_handler: HandshakeServerSide = handshake_strategy(self)
         self.socket_handler: SocketHandler = socket_handler
-        self.encryption_handler = encryption_handler
+        self.encryption_handler: EncryptionHandler = encryption_handler()
         self.max_clients = configuration.max_clients
         # TODO: use a `queue.Queue` for `self.clients` or something that is
         # threading safe, since a handshake handler could use it inside a
@@ -43,6 +43,12 @@ class Master:
         """# `run`
         Method that runs the server.
         """
+        logging.info("Setting up encryption handler")
+        # encryption handler setup
+        error = self.encryption_handler.setup()
+        if error is not None:
+            return error
+        logging.info("Setting up handshake handler")
         # handshake handler setup
         error = self.handshake_handler.setup()
         if error is not None:
@@ -127,7 +133,7 @@ class Master:
             # this may cause a dos vulnerability: trying to think of a way to mitigate
             # that at application layer
             socket_handler = self.socket_handler(
-                self.max_word_size, client_sock, self.encryption_handler()
+                self.max_word_size, client_sock, self.encryption_handler.clone()
             )
             error = socket_handler.setup()
             if error is not None:

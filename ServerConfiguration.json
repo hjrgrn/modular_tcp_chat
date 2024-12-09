@@ -3,7 +3,7 @@
     "production": false,
     "address": "127.0.0.1",
     "port": 5000,
-    "max_word_size": 4096,
+    "max_word_size": 128,
     "max_clients": 32,
     "handshake_config": {
         "database_path": "./instance/database.sqlite",
