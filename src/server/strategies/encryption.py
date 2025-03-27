@@ -25,7 +25,7 @@ class SharedSecretSS(EncryptionHandler):
 
     Concrete implementation of `EncryptionHandler`.
     This implementation uses an RSA key to exchange a AES key (both specific for every single connection), the last one will be used during the final part of the exchange and during the session.
-    During the exchange nonces, sha512 hashes, a shared secret(collected interactively) and a hmac key are used to verify the integrity of the exchange in order to prevent: playback attacks, segment replay attacks, spoofing(server side and client side); hopefully.
+    During the exchange nonces, sha512 hashes, a shared secret(collected interactively) and a hmac key are used to verify the integrity of the exchange in order to prevent: playback attacks, segment replay attacks, connection replay attack and spoofing(server side and client side); hopefully.
     This implementation offers no protection against disrupting minaces like DOS and truncation attacks at application layer.
     Every message exchanged is encrypted using AES and its integrity is verifyied using the sha256 algorithm, a sequence number(selected pseudo randomly during the exchange) and a hmac key.
     Some procedure are willingly redundant.

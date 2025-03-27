@@ -31,7 +31,7 @@ class NonCriticalDatabaseError(Exception):
 
 class DatabaseCommand:
     """# `DatabaseCommand`:
-    In order for `BasicAuthHandshakeSS` to communicate with it's own worker thread that manages the database a subinstance `DatabaseCommand` needs to be generated.
+    In order for `BasicAuthHandshakeSS` to communicate with it's own worker thread that manages the database, a subinstance `DatabaseCommand` needs to be generated.
     The programmer needs to generate a `queue.Queue` and pass it to a subclass of `DatabaseCommand`, enqueue the command on `BasicAuthHandshakeSS.command_queue`
     and wait for a response to be pushed on that same queue, example:
     ```python
@@ -44,9 +44,9 @@ class DatabaseCommand:
         return HandshakeError(response.__str__())
 
     ```
-    The worker `BasicAuthHandshakeSS._database_worker` calls `execute` method on the `DatabaseCommand` thet receives, `execute` method will add the response to the queue provided.
+    The worker `BasicAuthHandshakeSS._database_worker` calls `execute` method on the `DatabaseCommand` that receives, `execute` method will add the response to the queue provided.
     An eventual value that needs to be used by `BasicAuthHandshakeSS` will be pushed on the queue, or `None`; if something went wrong an `Exception` will be pushed, we have two type of specific `Exception`: `CriticalDatabaseError` and `NonCriticalDatabaseError`.
-    This abstract class provide default implementations, but they are useless.
+    This abstract class provides default implementations, but they are useless.
     Loggin can be handled inside the commands.
     """
 
